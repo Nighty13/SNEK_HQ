@@ -1,1 +1,40 @@
-/target
+# Ignore build artifacts
+/target/
+/pkg/
+
+# Ignore Cargo.lock for libraries (optional, but recommended for applications)
+Cargo.lock
+
+# Ignore IDE-specific files
+.vscode/
+.idea/
+
+# Ignore OS-specific files
+.DS_Store
+Thumbs.db
+
+# Ignore local environment files
+.env
+*.env
+
+# Ignore debug and release builds
+**/*.rs.bk
+**/*.d
+**/*.so
+**/*.dylib
+**/*.dll
+**/*.exe
+**/*.pdb
+
+# Ignore Rust cache and incremental compilation files
+**/.rustc/
+**/.cargo/
+**/incremental/
+
+# Ignore npm/node files (if you use npm for any reason)
+node_modules/
+package-lock.json
+
+# Ignore other temporary files
+*.tmp
+*.log
