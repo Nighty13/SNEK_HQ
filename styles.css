@@ -1,0 +1,189 @@
+/* Gradient background for the app */
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background: linear-gradient(180deg, #5bc3ff, #4625ff);
+  font-family: Arial, sans-serif;
+}
+
+/* Container for the app */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-width: 324px;
+  min-height: 324px;
+  padding: 5px;
+  border-radius: 5px;
+  box-shadow: 0 10px 10px rgba(0, 0, 0, 0.1);
+  font-family: Arial, sans-serif;
+  margin: 5px;
+  background: rgba(255, 255, 255, 0.1); /* Slightly transparent background */
+}
+
+/* Checkbox label styling */
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 6px;
+  transition: background-color 0.2s ease;
+}
+
+/* Checkbox input styling */
+.checkbox-input {
+  cursor: pointer;
+}
+
+/* Hover effect for checkbox */
+.checkbox-label:hover {
+  background-color: rgba(255, 255, 255, 1); /* Fully opaque white on hover */
+  border-radius: 4px;
+}
+
+/* Header Styles */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+  background-color: #363636;
+  border-bottom: 1px solid #ddd;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+}
+
+/* Service Status Styles */
+.service-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-text {
+  font-size: 14px;
+  color: #ffffff;
+}
+
+/* Header Image Styles */
+.header-image {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+
+/* Footer Styles */
+.footer {
+  padding: 10px 20px;
+  background-color: #363636;
+  border-top: 1px solid #ddd;
+  text-align: center;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+}
+
+.footer-text {
+  margin: 0;
+  font-size: 14px;
+  color: #ffffff;
+}
+
+/* ===== New Styles for Tabs and Content ===== */
+
+/* Tabs Container */
+.tabs-container {
+  display: flex;
+  justify-content: space-around;
+  background-color: rgba(
+    49,
+    49,
+    49,
+    0.9
+  ); /* Semi-transparent dark background */
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 10px; /* Add space between tabs and content */
+}
+
+/* Individual Tab Styles */
+.tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px;
+  cursor: pointer;
+  color: rgb(190, 190, 190);
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.tab:hover {
+  background-color: rgba(255, 255, 255, 0.1); /* Light hover effect */
+  transform: translateY(-2px); /* Slight lift effect on hover */
+}
+
+.tab.active {
+  background-color: #007bff; /* Blue background for active tab */
+  color: white;
+}
+
+/* Tab Icon Styles */
+.tab-icon {
+  width: 24px;
+  height: 24px;
+  margin-bottom: 5px;
+}
+
+/* Hover Text Styles */
+.hover-text {
+  font-size: 12px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.tab:hover .hover-text {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Content Container */
+.content-container {
+  flex-grow: 1; /* Take up remaining space */
+  background-color: #363636c0; /* Semi-transparent dark background */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 10px;
+  margin: 0 2px; /* Add horizontal margin */
+  border-radius: 8px; /* Rounded corners */
+}
+
+/* Content Styles */
+.content h1 {
+  margin-top: 0;
+  font-size: 24px;
+  color: #ffffff;
+}
+
+.content p {
+  font-size: 16px;
+  color: #cecece;
+}

@@ -1,0 +1,149 @@
+async fn init_indexed_db() -> Result<Database, JsValue> {
+    let db = Database::open("my_db")
+        .with_version(2u8)
+        .with_on_upgrade_needed(|event, db| {
+            match (event.old_version(), event.new_version()) {
+                (0.0, Some(1.0)) => {
+                    db.create_object_store("my_store")
+                        .with_auto_increment(true)
+                        .build()?;
+                }
+                _ => {}
+            }
+
+            Ok(())
+        })
+        .await
+        .unwrap();
+    Ok((db))
+}
+
+async fn load_settings() -> Result<Settings, JsValue> {
+    let mut loaded_settings = Settings { autobotting: false };
+
+    let transaction = db
+        .transaction("settings")
+        .with_mode(TransactionMode::Readonly)
+        .build();
+    if transaction.is_ok() {
+        let transaction = transaction.unwrap();
+        let object_store = transaction.object_store("settings");
+        if let Ok(object_store) = object_store {
+            let res: Result<Option<JsValue>, _> =
+                object_store.get(&JsValue::from_str("autobotting")).await;
+            if let Ok(Some(value)) = res {
+                loaded_settings.autobotting =
+                    serde_wasm_bindgen::from_value(value).unwrap_or(false);
+            }
+        }
+    }
+
+    return Ok(loaded_settings);
+}
+
+async fn save_settings(settings: Settings) -> Result<(), JsValue> {
+    let transaction = db
+        .transaction("settings")
+        .with_mode(TransactionMode::Readwrite)
+        .build();
+    if transaction.is_ok() {
+        let transaction = transaction.unwrap();
+        let object_store = transaction.object_store("settings");
+        if object_store.is_ok() {
+            let object_store = object_store.unwrap();
+            let value = serde_wasm_bindgen::to_value(&settings)?;
+            let _ = object_store.put(value).await;
+            transaction.commit().await;
+        }
+    }
+    Ok(())
+}
+
+
+    let (autobotting, set_autobotting) = signal(false);
+
+    // Load autobotting state from storage
+    {
+        let set_autobotting = set_autobotting.clone();
+        spawn_local(async move {
+            match load_settings().await {
+                Ok(settings) => {
+                    set_autobotting.set(settings.autobotting);
+                }
+                Err(e) => {
+                    log!("Failed to load settings: {:?}", e);
+                }
+            }
+        });
+    }
+
+    // Effect to start/stop the task
+    Effect::new(move |_| {
+        if autobotting.get() {
+            spawn_local(async move {
+                while autobotting.get() {
+                    log!("Hello World from autobotting Task!");
+                    TimeoutFuture::new(1_000).await;
+                }
+            });
+        }
+    });
+
+
+            <CheckboxComponent
+                label_text="Enable AutoBotting".to_string()
+                on_checked=move |is_checked|
+                {
+                    spawn_local(async move {
+                        //let _ = save_settings(Settings { autobotting: is_checked }).await;
+                    });
+                    set_autobotting.set(is_checked); // Control task based on checkbox
+                }
+                default_check = autobotting.get()
+            />
+
+
+            #[derive(Serialize, Deserialize)]
+struct Settings {
+    autobotting: bool,
+}
+
+
+use indexed_db_futures::transaction::TransactionMode;
+use indexed_db_futures::{database::Database, iter::ArrayMapIter};
+use indexed_db_futures::{object_store, prelude::*};
+use gloo_timers::future::TimeoutFuture;
+use leptos::attr::Data;
+
+
+#[component]
+fn CheckboxComponent<F>(
+    #[prop(into)] label_text: String,
+    on_checked: F,
+    #[prop(default = false)] default_check: bool,
+) -> impl IntoView
+where
+    F: Fn(bool) + 'static,
+{
+    let (checked, set_checked) = signal(default_check);
+
+    // Checkbox Component with Props
+    // Effect to notify parent when checked state changes
+    Effect::new(move |_| {
+        on_checked(checked.get()); // Directly invoke the closure
+    });
+
+    view! {
+        <label class="checkbox-label">
+            <input
+                type="checkbox"
+                class="checkbox-input"
+                prop:checked=checked.get()
+                on:change=move |ev| {
+                    set_checked.set(event_target_checked(&ev));
+                }
+            />
+            {label_text}
+        </label>
+    }
+}
