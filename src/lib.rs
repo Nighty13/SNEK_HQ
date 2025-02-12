@@ -5,6 +5,157 @@ use leptos_icons::*; // Import the leptos-icons library
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
+use web_sys::console::log;
+
+#[derive(Serialize, Deserialize, Clone)]
+struct StatusResponse {
+    status: bool, // true = online, false = offline
+}
+
+// Global state for service status
+#[derive(Copy, Clone)]
+struct ServiceStatus {
+    status: RwSignal<bool>,
+}
+
+impl ServiceStatus {
+    fn new() -> Self {
+        Self {
+            status: RwSignal::new(false), // Default to offline
+        }
+    }
+}
+
+// Global state for UID
+#[derive(Copy, Clone)]
+struct UidState {
+    uid: RwSignal<Option<String>>,
+}
+
+impl UidState {
+    fn new() -> Self {
+        Self {
+            uid: RwSignal::new(None), // Default to None
+        }
+    }
+}
+
+// Function to check the service status
+async fn check_status() -> Result<bool, String> {
+    let response = reqwest::get("http://localhost:8080/status")
+        .await
+        .map_err(|_| "Failed to fetch status".to_string())?;
+
+    let status_response: StatusResponse = response
+        .json()
+        .await
+        .map_err(|_| "Failed to parse status response".to_string())?;
+
+    Ok(status_response.status)
+}
+
+// Background task to periodically check the service status
+async fn status_checker(service_status: ServiceStatus) {
+    loop {
+        match check_status().await {
+            Ok(status) => {
+                service_status.status.set(status);
+            }
+            Err(err) => {
+                log!("{}", err);
+                service_status.status.set(false); // Set status to offline on error
+            }
+        }
+
+        // Wait for 5 seconds before checking again
+        gloo_timers::future::sleep(std::time::Duration::from_secs(5)).await;
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+struct UidResponse {
+    uid: String,
+}
+
+// Function to fetch UID from the API
+async fn fetch_uid() -> Result<String, String> {
+    let response = reqwest::get("http://localhost:8080/generate_uid")
+        .await
+        .map_err(|_| "Failed to fetch UID".to_string())?;
+
+    let uid_response: UidResponse = response
+        .json()
+        .await
+        .map_err(|_| "Failed to parse UID response".to_string())?;
+
+    Ok(uid_response.uid)
+}
+
+// Function to get or generate UID
+async fn get_or_generate_uid(uid_state: UidState, service_status: ServiceStatus) {
+    // Check localStorage for SNEK_HQ_UID
+    if let Some(uid) = localStorage_get("SNEK_HQ_UID") {
+        uid_state.uid.set(Some(uid));
+        return;
+    }
+
+    // If not found, fetch UID from the API
+    match fetch_uid().await {
+        Ok(uid) => {
+            // Store the UID in localStorage
+            localStorage_set("SNEK_HQ_UID", &uid);
+            uid_state.uid.set(Some(uid));
+        }
+        Err(err) => {
+            log!("{}", err);
+            // Start a retry mechanism if the service is online
+            if service_status.status.get() {
+                spawn_local(uid_retry_mechanism(uid_state, service_status));
+            }
+        }
+    }
+}
+
+// Background task to retry fetching UID
+async fn uid_retry_mechanism(uid_state: UidState, service_status: ServiceStatus) {
+    loop {
+        // Wait for 5 seconds before retrying
+        gloo_timers::future::sleep(std::time::Duration::from_secs(5)).await;
+
+        // Only retry if the service is online
+        if !service_status.status.get() {
+            break;
+        }
+
+        match fetch_uid().await {
+            Ok(uid) => {
+                // Store the UID in localStorage
+                localStorage_set("SNEK_HQ_UID", &uid);
+                uid_state.uid.set(Some(uid));
+                break; // Exit the retry loop on success
+            }
+            Err(err) => {
+                log!("{}", err);
+            }
+        }
+    }
+}
+
+// Helper function to get a value from localStorage
+fn localStorage_get(key: &str) -> Option<String> {
+    let window = web_sys::window()?;
+    let localStorage = window.local_storage().ok()??;
+    localStorage.get_item(key).ok()?
+}
+
+// Helper function to set a value in localStorage
+fn localStorage_set(key: &str, value: &str) {
+    if let Some(window) = web_sys::window() {
+        if let Ok(Some(local_storage)) = window.local_storage() {
+            let _ = local_storage.set_item(key, value);
+        }
+    }
+}
 
 #[component]
 fn Tab(
@@ -95,14 +246,17 @@ fn RaidCenterContent() -> impl IntoView {
 }
 
 #[component]
-fn ServiceStatus(status: bool) -> impl IntoView {
+fn ServiceStatus() -> impl IntoView {
+    let service_status = use_context::<ServiceStatus>().expect("ServiceStatus context not found");
+
     let status_color = move || {
-        if status {
-            "green" // Service is active
+        if service_status.status.get() {
+            "green" // Online
         } else {
-            "red" // Service is inactive
+            "red" // Offline
         }
     };
+
     view! {
         <div class="service-status">
             <div
@@ -110,7 +264,7 @@ fn ServiceStatus(status: bool) -> impl IntoView {
                 style=format!("background-color: {}", status_color())
             ></div>
             <span class="status-text">
-                {move || format!("SNEK HQ {}", if status { "Online" } else { "Offline" })}
+                {move || format!("SNEK HQ {}", if service_status.status.get() { "Online" } else { "Offline" })}
             </span>
         </div>
     }
@@ -118,16 +272,14 @@ fn ServiceStatus(status: bool) -> impl IntoView {
 
 #[component]
 fn Header() -> impl IntoView {
-    let (service_status, set_service_status) = signal(true); // true = online, false = offline
-
     view! {
         <header class="header">
             <div class="header-left">
-                <ServiceStatus status=service_status.get() />
+                <ServiceStatus />
             </div>
             <div class="header-right">
                 <img
-                    src="./icons/snek_icon_48.png" // Replace with your image URL
+                    src="./icons/snek_icon_48.png"
                     alt="Logo"
                     class="header-image"
                 />
@@ -150,9 +302,19 @@ fn Footer() -> impl IntoView {
 // Main App Component
 #[component]
 fn App() -> impl IntoView {
-    let active_tab = RwSignal::new(0); // Use create_rw_signal to create an RwSignal
+    let service_status = ServiceStatus::new();
+    let uid_state = UidState::new();
 
-    //view! { <HomeContent />};
+    // Start the background status checker
+    spawn_local(status_checker(service_status));
+
+    // Fetch or generate UID when the app launches
+    spawn_local(get_or_generate_uid(uid_state, service_status));
+
+    // Provide global states to the app
+    provide_context(service_status);
+    provide_context(uid_state);
+    let active_tab = RwSignal::new(0); // Use create_rw_signal to create an RwSignal
 
     view! {
         <Header />
